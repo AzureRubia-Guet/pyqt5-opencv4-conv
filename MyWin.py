@@ -86,7 +86,7 @@ class MyWin(QWidget, Ui_Form):
         if filename is None:
             return
         self.picture = cv2.imdecode(numpy.fromfile(filename, dtype=numpy.uint8), -1)
-        #   读取图片的数据
+        #   读取图片的数据,cv2.imread不能支持中文路径名
         if self.picture is None:
             return
         self.picture = cv2.cvtColor(self.picture, cv2.COLOR_BGR2RGB)
