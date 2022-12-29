@@ -1,5 +1,5 @@
 import sys
-from MyWin import MyWin
+from myWin import MyWin
 from PyQt5.Qt import QApplication
 
 
