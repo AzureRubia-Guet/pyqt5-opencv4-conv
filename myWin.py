@@ -1,11 +1,8 @@
-import os
-import win32ui
-import win32con
 from PyQt5.QtCore import Qt
-from PyQt5.Qt import QWidget, QPixmap, QStandardItem, QHeaderView, QStandardItemModel
+from PyQt5.Qt import QWidget, QPixmap, QStandardItem, QHeaderView, QStandardItemModel, QFileDialog
 from myConvThread import ConvThread
-import cv2
-import numpy
+from PIL import Image
+from numpy import float64, asarray, array, ndarray
 from ui import Ui_Form
 
 
@@ -21,7 +18,8 @@ class MyWin(QWidget, Ui_Form):
         self.init_connect()  # 绑定槽函数
         return
 
-    def init_ui(self): # 画出ui界面
+
+    def init_ui(self)->None: # 画出ui界面
         self.setupUi(self)
         self.retranslateUi(self)
         #   选择文件按钮：self.pushButton
@@ -33,15 +31,16 @@ class MyWin(QWidget, Ui_Form):
         #   图像卷积按钮：self.pushButton_2
         return
 
-    def init_line_edit(self):  # 显示文件路径的框
+
+    def init_line_edit(self)->None:  # 显示文件路径的框
         self.lineEdit_2.setEnabled(False)
         #   将显示框设置为不可编辑
         return
 
-    def init_tableview(self):  # 设置卷积核显示
+
+    def init_tableview(self)->None:  # 设置卷积核显示
         self.tableView.model = QStandardItemModel()
         self.tableView.setModel(self.tableView.model)  # 放任意的类型
-        self.tableView.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)  # 禁用水平滚动条
         self.tableView.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)  # 禁用水平滚动条
         self.tableView.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)  # 所有列自动拉伸，充满界面
         for row in range(3):  # 全部初始化成'1'
@@ -50,64 +49,47 @@ class MyWin(QWidget, Ui_Form):
                 self.tableView.model.setItem(row, column, item)
         return
 
-    def init_combobox(self):  # 设置combobox的显示
+
+    def init_combobox(self)->None:  # 设置combobox的显示
         self.comboBox.addItems(['默认', '轮廓', '浮雕', '锐化'])
         return
 
-    def init_connect(self):  # 绑定各个动作的的槽函数
-        self.pushButton.clicked.connect(self.click_of_choose_file)
-        #   绑定选择文件按钮槽函数
-        self.pushButton_2.clicked.connect(self.click_of_conv)
-        #   绑定卷积按钮槽函数
-        self.logic_thread = ConvThread()
-        #    创建了一个子线程的类
-        self.logic_thread.my_signal.connect(self.logic_thread.logic_of_request)
-        #   绑定子线程信号
-        self.logic_thread.start()
-        #   开始线程
-        self.comboBox.currentIndexChanged.connect(self.click_of_choose_kernel)
-        #   绑定选择卷积核按钮
+
+    def init_connect(self)->None:  # 绑定各个动作的的槽函数
+        self.pushButton.clicked.connect(self.click_of_choose_file) #   绑定选择文件按钮槽函数
+        self.pushButton_2.clicked.connect(self.click_of_conv) #   绑定卷积按钮槽函数
+        self.logic_thread = ConvThread() #    创建了一个子线程的类
+        self.logic_thread.my_signal.connect(self.logic_thread.logic_of_request) #   绑定子线程信号
+        self.logic_thread.start() #   开始线程
+        self.comboBox.currentIndexChanged.connect(self.click_of_choose_kernel) #   绑定选择卷积核按钮
         return
 
-    def click_of_choose_file(self):  # 点击选择文件之后的动作，主要是生成一个选择文件的对话框
-        default_name = ''
-        # 默认输入文件名 (一般 "保存/另存为" 为文件名加后缀, "打开" 为空字符串)
-        file_type = '|*.png;*.jpg|'
-        # 可选的文件类型
-        api_flag = win32con.OFN_OVERWRITEPROMPT | win32con.OFN_FILEMUSTEXIST
-        dlg = win32ui.CreateFileDialog(True, None, default_name, api_flag, file_type)
-        # true为打开,false为保存
-        dlg.SetOFNTitle("选择您的图片文件")
-        # "SetOFNTitle()": 设置标题
-        #  dlg.SetOFNInitialDir(os.path.abspath(__file__))
-        # "SetOFNInitialDir()": 设置默认路径(需绝对路径) ("os.path.abspath()" 获取绝对路径)
-        dlg.DoModal()
-        # "DoModal()": 开始运行对话框, 阻滞程序
-        filename = dlg.GetPathName()
-        if filename is None:
+
+    def click_of_choose_file(self)->None:  # 点击选择文件之后的动作，主要是生成一个选择文件的对话框
+        file_type = 'ImagFile(*.png *.jpg *.jpge)' # 可选的文件类型
+        file_path, _ = QFileDialog.getOpenFileName(parent = self, caption = 'Choose picture file',
+                                                    directory = r'D:\jupyter-workspace\opencv\picture', filter = file_type)
+        if file_path is None:
             return
-        self.picture = cv2.imdecode(numpy.fromfile(filename, dtype=numpy.uint8), -1)
-        #   读取图片的数据,cv2.imread无法读取中文路径
-        if self.picture is None:
-            return
-        self.picture = cv2.cvtColor(self.picture, cv2.COLOR_BGR2RGB)
-        #   将颜色通道转化成正常的情况下
-        self.lineEdit_2.setText(filename)
-        #   显示文件路径在QLineEdit
-        pix = QPixmap(filename)
-        self.label_2.setPixmap(pix)
-        #   加载原始图片
-        self.label_2.setScaledContents(True)
-        #   自适应label
+        else:
+            img = Image.open(file_path)
+            img_channel = asarray(img.convert('RGB')) # 调整通道顺序并转化为array
+            self.picture = img_channel #   读取图片的数据
+        self.lineEdit_2.setText(file_path) #   显示文件路径在QLineEdit
+        pix = QPixmap(file_path)
+        self.label_2.setPixmap(pix) #   加载原始图片
+        self.label_2.setScaledContents(True) #   自适应label
         return
 
-    def click_of_conv(self):  # 点击卷积按钮之后
+
+    def click_of_conv(self)->None:  # 点击卷积按钮之后
         kernel = self.get_kernel()  # 获取卷积核
         self.logic_thread.my_signal.emit([self.picture, kernel], self.label_3)
         # 向正在死循环的子线程发送信息，调用myConvThread.logic_of_request函数
         return
 
-    def click_of_choose_kernel(self):  # 按照选择的内容把对应的卷积核显示出来
+
+    def click_of_choose_kernel(self)->None:  # 按照选择的内容把对应的卷积核显示出来
         sharpen = [[0, -1, 0], [-1, 5, -1], [0, -1, 0]]  # 锐化核
         relief = [[-2, 1, 0], [-1, 1, 1], [0, 1, 2]]  # 浮雕核
         outline = [[-1, -1, -1, ], [-1, 8, -1], [-1, -1, -1]]  # 轮廓核
@@ -135,7 +117,8 @@ class MyWin(QWidget, Ui_Form):
                     self.tableView.model.setItem(row, column, item)
         return
 
-    def get_kernel(self):  # 点了卷积之后获取显示在表格上的卷积核
+
+    def get_kernel(self)->ndarray:  # 点了卷积之后获取显示在表格上的卷积核
         kernel = []  # 卷积核
         for row in range(3):
             new_list = []
@@ -143,4 +126,4 @@ class MyWin(QWidget, Ui_Form):
                 index = self.tableView.model.index(row, column)  # 获得每一个单元格的信息
                 new_list.append(float(self.tableView.model.data(index)))
             kernel.append(new_list)
-        return numpy.array(kernel, numpy.float64)  # 转化成numpy.array
+        return array(kernel, float64)  # 转化成numpy.ndarray
